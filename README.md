@@ -3,8 +3,8 @@ The art of music.
 
 ## 开发指南
 ### 环境
-开发IDE：trae
-npm版本：10.2.3
+1. 开发IDE：trae
+2. npm版本：10.2.3
 
 ### 运行
 1. 克隆项目到本地

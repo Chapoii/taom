@@ -111,12 +111,33 @@
         <div
           class="controls flex justify-center items-center space-x-8 text-white"
         >
+          <!-- 重置按钮 -->
+          <div
+            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            @click="resetAudio"
+            title="重置(R)"
+          >
+            <i class="fas fa-redo text-xl"></i>
+          </div>
+          
+          <!-- 播放/暂停按钮 -->
           <div
             class="play-pause-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
             @click="togglePlayPause"
+            title="播放/暂停(P)"
           >
             <i v-if="isPlaying" class="fas fa-pause text-xl"></i>
             <i v-else class="fas fa-play text-xl"></i>
+          </div>
+          
+          <!-- 全屏按钮 -->
+          <div
+            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            @click="toggleFullscreen"
+            title="全屏(F)"
+          >
+            <i v-if="!isFullscreen" class="fas fa-expand text-xl"></i>
+            <i v-else class="fas fa-compress text-xl"></i>
           </div>
         </div>
       </div>
@@ -143,6 +164,7 @@ const progress = ref(0);
 const currentTimeFormatted = ref("0:00");
 const durationFormatted = ref("0:00");
 const isPlaying = ref(false);
+const isFullscreen = ref(false);
 
 // 主题颜色相关
 const themeColors = ref(generateRandomTheme());
@@ -153,12 +175,35 @@ const toggleFullscreen = () => {
     // 进入全屏
     document.documentElement.requestFullscreen().catch((err) => {
       console.warn(`全屏请求错误: ${err.message}`);
+    }).finally(() => {
+      // 更新全屏状态
+      isFullscreen.value = !!document.fullscreenElement;
     });
   } else {
     // 退出全屏
     if (document.exitFullscreen) {
-      document.exitFullscreen();
+      document.exitFullscreen().finally(() => {
+        // 更新全屏状态
+        isFullscreen.value = !!document.fullscreenElement;
+      });
     }
+  }
+};
+
+// 监听全屏变化事件
+const handleFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement;
+};
+
+// 添加全屏变化事件监听器
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+// 重置音乐到开始位置
+const resetAudio = () => {
+  if (audioPlayer.value) {
+    audioPlayer.value.currentTime = 0;
+    audioPlayer.value.pause();
+    isPlaying.value = false;
   }
 };
 
@@ -167,6 +212,12 @@ const handleKeyPress = (event) => {
   if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleFullscreen();
+  } else if (event.key.toLowerCase() === "p" && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    togglePlayPause();
+  } else if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+    resetAudio();
   }
 };
 
@@ -274,18 +325,54 @@ const handleFileChange = (event) => {
     audioSrc.value = currentBlobUrl;
 
     showPlayer.value = true;
-
-    // 播放音乐
-    setTimeout(() => {
-      if (audioPlayer.value) {
-        audioPlayer.value.loop = true;
-        audioPlayer.value.play().catch((err) => {
-          console.warn("播放失败:", err);
-          isPlaying.value = false;
-        });
+    
+    // 使用Promise方式在音频加载完成后尝试自动播放
+    if (audioPlayer.value) {
+      // 先设置循环播放
+      audioPlayer.value.loop = true;
+      
+      // 创建一个Promise来处理音频加载和播放
+      const playAfterLoad = new Promise((resolve, reject) => {
+        const handleLoad = () => {
+          cleanupEventListeners();
+          resolve();
+        };
+        
+        const handleError = (err) => {
+          cleanupEventListeners();
+          reject(err);
+        };
+        
+        const cleanupEventListeners = () => {
+          audioPlayer.value.removeEventListener('loadedmetadata', handleLoad);
+          audioPlayer.value.removeEventListener('canplay', handleLoad);
+          audioPlayer.value.removeEventListener('error', handleError);
+        };
+        
+        // 添加事件监听器
+        audioPlayer.value.addEventListener('loadedmetadata', handleLoad);
+        audioPlayer.value.addEventListener('canplay', handleLoad);
+        audioPlayer.value.addEventListener('error', handleError);
+        
+        // 设置一个超时，以防音频加载事件未触发
+        setTimeout(() => {
+          cleanupEventListeners();
+          reject(new Error('音频加载超时'));
+        }, 5000);
+      });
+      
+      // 尝试播放音频
+      playAfterLoad.then(() => {
+        return audioPlayer.value.play();
+      }).then(() => {
         isPlaying.value = true;
-      }
-    }, 100);
+      }).catch((err) => {
+        console.warn('自动播放失败，需要用户交互:', err);
+        isPlaying.value = false;
+      });
+    } else {
+      isPlaying.value = false;
+    }
   }
 };
 
@@ -490,6 +577,8 @@ onUnmounted(() => {
   }
   // 移除键盘事件监听器
   document.removeEventListener("keydown", handleKeyPress);
+  // 清理全屏事件监听器
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 </script>
 

@@ -376,3 +376,39 @@ const handleKeyPress = (event) => {
 - 按下"P"键：切换音乐播放状态（播放↔暂停）
 - 按下"R"键：将音乐重置到开始位置并暂停
 - 按下"F"键：切换全屏模式（原有功能）
+
+## 艺术字阴影颜色主题适配
+
+### 功能描述
+将艺术字的文字阴影颜色从固定的黑色改为适配当前主题色的样式，提升整体视觉协调性。
+
+### 实现思路
+1. 在根元素样式中添加`--artistic-text-shadow` CSS变量，绑定到主题色系统的accentColor
+2. 修改`.artistic-text`类中的`text-shadow`属性，使用CSS变量替代固定颜色值
+
+### 实现代码
+
+```html
+<!-- 在根元素中添加CSS变量 -->
+<div
+  class="flex items-center justify-center h-screen w-screen bg-animate"
+  :style="{
+    background: `linear-gradient(135deg, ${themeColors.startColor}, ${themeColors.endColor})`,
+    '--text-glow-color': themeColors.textGlowColor,
+    '--artistic-text-color': themeColors.artisticTextColor,
+    '--artistic-text-shadow': themeColors.accentColor,
+  }"
+>
+```
+
+```css
+/* 修改艺术字样式 */
+.artistic-text {
+  font-family: "Microsoft YaHei", sans-serif;
+  text-shadow: 2px 2px 4px var(--artistic-text-shadow);
+  animation: textGlow 3s ease-in-out infinite alternate;
+}
+```
+
+### 实现效果
+艺术字阴影颜色现在会随主题色变化而自动调整，使用accentColor作为阴影颜色，保持整体视觉风格的一致性和协调性。

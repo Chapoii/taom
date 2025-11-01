@@ -5,6 +5,7 @@
       background: `linear-gradient(135deg, ${themeColors.startColor}, ${themeColors.endColor})`,
       '--text-glow-color': themeColors.textGlowColor,
       '--artistic-text-color': themeColors.artisticTextColor,
+      '--artistic-text-shadow': themeColors.accentColor,
     }"
     @click="handleBackgroundClick"
   >
@@ -119,17 +120,17 @@
           >
             <i class="fas fa-redo text-xl"></i>
           </div>
-          
+
           <!-- 播放/暂停按钮 -->
           <div
-            class="play-pause-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
             @click="togglePlayPause"
             title="播放/暂停(P)"
           >
             <i v-if="isPlaying" class="fas fa-pause text-xl"></i>
             <i v-else class="fas fa-play text-xl"></i>
           </div>
-          
+
           <!-- 全屏按钮 -->
           <div
             class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
@@ -173,12 +174,15 @@ const themeColors = ref(generateRandomTheme());
 const toggleFullscreen = () => {
   if (!document.fullscreenElement) {
     // 进入全屏
-    document.documentElement.requestFullscreen().catch((err) => {
-      console.warn(`全屏请求错误: ${err.message}`);
-    }).finally(() => {
-      // 更新全屏状态
-      isFullscreen.value = !!document.fullscreenElement;
-    });
+    document.documentElement
+      .requestFullscreen()
+      .catch((err) => {
+        console.warn(`全屏请求错误: ${err.message}`);
+      })
+      .finally(() => {
+        // 更新全屏状态
+        isFullscreen.value = !!document.fullscreenElement;
+      });
   } else {
     // 退出全屏
     if (document.exitFullscreen) {
@@ -196,7 +200,7 @@ const handleFullscreenChange = () => {
 };
 
 // 添加全屏变化事件监听器
-document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener("fullscreenchange", handleFullscreenChange);
 
 // 重置音乐到开始位置
 const resetAudio = () => {
@@ -212,10 +216,18 @@ const handleKeyPress = (event) => {
   if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey) {
     event.preventDefault();
     toggleFullscreen();
-  } else if (event.key.toLowerCase() === "p" && !event.ctrlKey && !event.metaKey) {
+  } else if (
+    event.key.toLowerCase() === "p" &&
+    !event.ctrlKey &&
+    !event.metaKey
+  ) {
     event.preventDefault();
     togglePlayPause();
-  } else if (event.key.toLowerCase() === "r" && !event.ctrlKey && !event.metaKey) {
+  } else if (
+    event.key.toLowerCase() === "r" &&
+    !event.ctrlKey &&
+    !event.metaKey
+  ) {
     event.preventDefault();
     resetAudio();
   }
@@ -325,51 +337,54 @@ const handleFileChange = (event) => {
     audioSrc.value = currentBlobUrl;
 
     showPlayer.value = true;
-    
+
     // 使用Promise方式在音频加载完成后尝试自动播放
     if (audioPlayer.value) {
       // 先设置循环播放
       audioPlayer.value.loop = true;
-      
+
       // 创建一个Promise来处理音频加载和播放
       const playAfterLoad = new Promise((resolve, reject) => {
         const handleLoad = () => {
           cleanupEventListeners();
           resolve();
         };
-        
+
         const handleError = (err) => {
           cleanupEventListeners();
           reject(err);
         };
-        
+
         const cleanupEventListeners = () => {
-          audioPlayer.value.removeEventListener('loadedmetadata', handleLoad);
-          audioPlayer.value.removeEventListener('canplay', handleLoad);
-          audioPlayer.value.removeEventListener('error', handleError);
+          audioPlayer.value.removeEventListener("loadedmetadata", handleLoad);
+          audioPlayer.value.removeEventListener("canplay", handleLoad);
+          audioPlayer.value.removeEventListener("error", handleError);
         };
-        
+
         // 添加事件监听器
-        audioPlayer.value.addEventListener('loadedmetadata', handleLoad);
-        audioPlayer.value.addEventListener('canplay', handleLoad);
-        audioPlayer.value.addEventListener('error', handleError);
-        
+        audioPlayer.value.addEventListener("loadedmetadata", handleLoad);
+        audioPlayer.value.addEventListener("canplay", handleLoad);
+        audioPlayer.value.addEventListener("error", handleError);
+
         // 设置一个超时，以防音频加载事件未触发
         setTimeout(() => {
           cleanupEventListeners();
-          reject(new Error('音频加载超时'));
+          reject(new Error("音频加载超时"));
         }, 5000);
       });
-      
+
       // 尝试播放音频
-      playAfterLoad.then(() => {
-        return audioPlayer.value.play();
-      }).then(() => {
-        isPlaying.value = true;
-      }).catch((err) => {
-        console.warn('自动播放失败，需要用户交互:', err);
-        isPlaying.value = false;
-      });
+      playAfterLoad
+        .then(() => {
+          return audioPlayer.value.play();
+        })
+        .then(() => {
+          isPlaying.value = true;
+        })
+        .catch((err) => {
+          console.warn("自动播放失败，需要用户交互:", err);
+          isPlaying.value = false;
+        });
     } else {
       isPlaying.value = false;
     }
@@ -490,10 +505,7 @@ watch(
 // 处理背景点击事件，创建点击粒子特效
 const handleBackgroundClick = (event) => {
   // 避免点击播放器控件时也触发粒子效果
-  if (
-    event.target.closest(".audio-player") ||
-    event.target.closest(".play-pause-btn")
-  ) {
+  if (event.target.closest(".audio-player")) {
     return;
   }
 
@@ -578,14 +590,14 @@ onUnmounted(() => {
   // 移除键盘事件监听器
   document.removeEventListener("keydown", handleKeyPress);
   // 清理全屏事件监听器
-  document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
 });
 </script>
 
 <style>
 .artistic-text {
   font-family: "Microsoft YaHei", sans-serif;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 2px 2px 4px var(--artistic-text-shadow);
   animation: textGlow 3s ease-in-out infinite alternate;
 }
 

@@ -412,3 +412,270 @@ const handleKeyPress = (event) => {
 
 ### 实现效果
 艺术字阴影颜色现在会随主题色变化而自动调整，使用accentColor作为阴影颜色，保持整体视觉风格的一致性和协调性。
+
+## 移动端适配修复
+
+### 功能描述
+修复移动端播放页面的显示异常问题：1. 唱片在宽度不足时导致图表超出内圈；2. 控制框宽度不足时控制按钮被挤压成椭圆。
+
+### 实现思路
+1. 为唱片容器和唱片添加`flex-shrink: 0`和最小尺寸约束，防止唱片被缩小
+2. 使用响应式间距，在小屏幕上减小控制按钮之间的间距
+3. 为控制按钮添加`flex-shrink: 0`，确保按钮保持固定尺寸不被挤压
+4. 调整唱片容器的下边距，优化移动端布局
+
+### 实现代码
+
+**唱片容器修改：**
+```html
+<div class="vinyl-record-container mb-20 min-w-[200px] min-h-[200px]">
+```
+
+**唱片容器样式修改：**
+```css
+.vinyl-record-container {
+  perspective: 1000px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  height: 200px;
+  width: 200px;
+  flex-shrink: 0;
+}
+```
+
+**唱片样式修改：**
+```css
+.vinyl-record {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  position: relative;
+  box-shadow:
+    0 0 20px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(255, 255, 255, 0.3);
+  border: 2px solid;
+  transition: transform 0.3s ease;
+  z-index: 20;
+  flex-shrink: 0;
+}
+```
+
+**控制按钮容器修改：**
+```html
+<div class="controls flex justify-center items-center sm:space-x-8 space-x-4 text-white">
+```
+
+**控制按钮修改（以重置按钮为例）：**
+```html
+<div
+  class="control-btn w-[50px] h-[50px] flex-shrink-0 flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+  @click="resetAudio"
+  title="重置(R)"
+>
+```
+
+### 实现效果
+- 唱片在移动设备上保持固定尺寸，避免图表超出内圈
+- 控制按钮在宽度不足时保持圆形，通过减小间距来适应屏幕宽度
+- 整体布局在移动端显示更加合理，用户体验得到优化
+
+### 文件名长度限制功能
+
+#### 功能描述
+添加文件名长度判断，如果文件名超过8个字符，自动截断为前6个字符加上省略号，优化播放界面的显示效果。
+
+#### 实现思路
+1. 获取文件名（去除扩展名）
+2. 判断文件名长度是否超过8个字符
+3. 如果超过，使用substring方法提取前6个字符并添加省略号
+4. 如果不超过，直接使用原文件名
+
+#### 实现代码
+```javascript
+const fileName = file.name.replace(/\.[^/.]+$/, "");
+// 如果文件名超过8个字符，用前6个字符+省略号替换
+trackTitle.value = fileName.length > 8 ? fileName.substring(0, 6) + '……' : fileName;
+```
+
+#### 实现效果
+- 长文件名会被自动截断，避免播放界面显示过长的标题
+- 通过省略号提示用户标题被截断，保持UI美观
+- 短文件名保持原样显示，无需额外处理
+
+### 移动端全屏竖屏锁定功能
+
+#### 功能描述
+修复移动端在点击全屏时变成横屏模式导致画面异常的问题，在全屏时保持竖屏状态，确保播放界面正常显示。通过多种增强措施解决锁定失败的情况。
+
+#### 实现思路
+1. 使用CSS强制竖屏样式作为基础保障
+2. 利用HTML5 Screen Orientation API锁定屏幕方向为竖屏(portrait-primary)，添加延迟执行确保锁定生效
+3. 集成多种浏览器兼容性API，包括标准API和各种浏览器前缀API
+4. 在全屏变化事件中也添加方向控制，处理用户手动切换全屏的情况
+5. 添加详细日志和全面的错误捕获机制
+
+#### 实现代码
+
+**进入全屏时锁定竖屏：**
+```javascript
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    // 进入全屏前先添加强制竖屏样式
+    document.documentElement.style.orientation = 'portrait';
+    
+    // 进入全屏
+    document.documentElement
+      .requestFullscreen({
+        navigationUI: 'hide',
+        // 尝试请求竖屏方向
+        screenOrientation: 'portrait'
+      })
+      .then(() => {
+        console.log("已进入全屏", screen.orientation);
+        
+        // 使用延迟确保全屏完全生效后再尝试锁定方向
+        setTimeout(() => {
+          // 尝试使用更具体的竖屏模式
+          const lockOrientation = () => {
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation
+                .lock("portrait-primary")
+                .then(() => {
+                  console.log("屏幕方向已锁定为竖屏-primary");
+                })
+                .catch((err) => {
+                  console.warn("使用portrait-primary锁定失败，尝试普通portrait:", err.message);
+                  // 尝试备用的锁定方式
+                  try {
+                    // 尝试使用旧版API作为备选
+                    if (screen.lockOrientation) {
+                      screen.lockOrientation("portrait-primary");
+                      console.log("使用旧版API锁定屏幕方向");
+                    } else if (screen.mozLockOrientation) {
+                      screen.mozLockOrientation("portrait-primary");
+                      console.log("使用Mozilla API锁定屏幕方向");
+                    } else if (screen.webkitLockOrientation) {
+                      screen.webkitLockOrientation("portrait-primary");
+                      console.log("使用WebKit API锁定屏幕方向");
+                    }
+                  } catch (fallbackErr) {
+                    console.warn("所有方向锁定方法都失败:", fallbackErr.message);
+                  }
+                });
+            } else {
+              // 尝试使用旧版API作为备选
+              try {
+                if (screen.lockOrientation) {
+                  screen.lockOrientation("portrait-primary");
+                  console.log("使用旧版API锁定屏幕方向");
+                }
+              } catch (err) {
+                console.warn("旧版API锁定失败:", err.message);
+              }
+            }
+          };
+          
+          lockOrientation();
+        }, 500); // 500ms延迟确保全屏状态稳定
+      })
+      .catch((err) => {
+        console.warn(`全屏请求错误: ${err.message}`);
+      })
+      .finally(() => {
+        // 更新全屏状态
+        isFullscreen.value = !!document.fullscreenElement;
+      });
+  } else {
+    // 退出全屏
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+        .then(() => {
+          // 移除强制竖屏样式
+          document.documentElement.style.orientation = '';
+          
+          // 退出全屏后解锁屏幕方向
+          if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+            console.log("屏幕方向已解锁");
+          } else {
+            // 尝试使用旧版API解锁
+            try {
+              if (screen.unlockOrientation) {
+                screen.unlockOrientation();
+                console.log("使用旧版API解锁屏幕方向");
+              } else if (screen.mozUnlockOrientation) {
+                screen.mozUnlockOrientation();
+              } else if (screen.webkitUnlockOrientation) {
+                screen.webkitUnlockOrientation();
+              }
+            } catch (err) {
+              console.warn("解锁方向失败:", err.message);
+            }
+          }
+        })
+        .finally(() => {
+          // 更新全屏状态
+          isFullscreen.value = !!document.fullscreenElement;
+        });
+    }
+  }
+};
+```
+
+**监听全屏变化事件，确保正确解锁：**
+```javascript
+const handleFullscreenChange = () => {
+  const fullscreenActive = !!document.fullscreenElement;
+  isFullscreen.value = fullscreenActive;
+
+  console.log("全屏状态变化:", fullscreenActive, "当前方向:", screen.orientation?.type);
+  
+  if (fullscreenActive) {
+    // 如果进入全屏，尝试再次锁定竖屏方向（处理用户手动切换全屏的情况）
+    // 使用延迟确保全屏状态稳定
+    setTimeout(() => {
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation
+            .lock("portrait-primary")
+            .catch(() => {
+              // 忽略锁定失败
+            });
+        } else if (screen.lockOrientation) {
+          screen.lockOrientation("portrait-primary");
+        }
+        // 添加强制竖屏样式
+        document.documentElement.style.orientation = 'portrait';
+      } catch (err) {
+        console.warn("处理全屏变化时锁定方向失败:", err.message);
+      }
+    }, 300);
+  } else {
+    // 如果用户手动退出全屏，确保解锁屏幕方向
+    try {
+      // 移除强制竖屏样式
+      document.documentElement.style.orientation = '';
+      
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+        console.log("屏幕方向已解锁");
+      } else if (screen.unlockOrientation) {
+        screen.unlockOrientation();
+        console.log("使用旧版API解锁屏幕方向");
+      }
+    } catch (err) {
+      console.warn("处理全屏变化时解锁方向失败:", err.message);
+    }
+  }
+};
+```
+
+#### 实现效果
+- 多层保障：结合CSS样式和JavaScript API实现全方位的竖屏锁定
+- 延迟执行：添加适当延迟确保全屏状态稳定后再锁定方向，提高成功率
+- 兼容性优化：支持多种浏览器API实现（标准API、旧版API、浏览器前缀API）
+- 事件处理增强：在全屏变化事件中也添加方向控制，处理用户手动切换全屏的情况
+- 详细日志：添加详细的日志输出，方便调试和问题追踪
+- 错误处理：全面的错误捕获机制，确保功能稳定性

@@ -1,5 +1,5 @@
 /* 导入Font Awesome */
-@import '@fortawesome/fontawesome-free/css/all.css';
+@import "@fortawesome/fontawesome-free/css/all.css";
 
 @tailwind base;
 @tailwind components;
@@ -20,23 +20,32 @@ body {
 }
 
 @keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .artistic-text {
-  font-family: 'Pacifico', cursive;
-  font-size: 120px;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 0 20px rgba(109, 40, 217, 0.7);
+  font-family: "Pacifico", cursive;
+  /* 基础字体设置 - 具体字体将由组件样式覆盖 */
+  font-size: clamp(5vw, 15vw, 120px);
+  /* 确保文本不换行 */
+  white-space: nowrap;
+  /* 防止文本溢出容器 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--artistic-text-color, rgba(255, 255, 255, 0.9));
+  /* 使用主题变量控制阴影 - 具体阴影将由组件样式覆盖 */
+  text-shadow: 0 0 10px var(--artistic-text-shadow);
+  /* 添加轻微的缩放过渡效果 */
+  transition: transform 0.3s ease;
   animation: pulse 3s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.9; }
 }
 
 .upload-btn {
@@ -59,6 +68,56 @@ body {
 .upload-btn i {
   font-size: 48px;
   color: white;
+}
+
+/* 针对不同屏幕尺寸的媒体查询，确保字体大小合适 */
+@media (max-width: 768px) {
+  .artistic-text {
+    font-size: clamp(12vw, 20vw, 80px);
+    /* 确保动画效果在移动设备上正常 */
+    animation-duration: 3s;
+  }
+
+  .upload-btn {
+    width: 90px;
+    height: 90px;
+  }
+
+  .upload-btn i {
+    font-size: 36px;
+    color: white;
+  }
+}
+
+@media (max-width: 480px) {
+  .artistic-text {
+    font-size: clamp(15vw, 25vw, 60px);
+    /* 进一步优化非常小的屏幕 */
+    max-width: 90vw;
+  }
+  .upload-btn {
+    width: 80px;
+    height: 80px;
+  }
+  .upload-btn i {
+    font-size: 24px;
+    color: white;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
 }
 
 .hidden {
@@ -86,7 +145,7 @@ body {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(to right, #8B5CF6, #EC4899);
+  background: linear-gradient(to right, #8b5cf6, #ec4899);
   border-radius: 4px;
   width: 0%;
 }

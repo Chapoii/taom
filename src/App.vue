@@ -5,7 +5,7 @@
       background: `linear-gradient(135deg, ${themeColors.startColor}, ${themeColors.endColor})`,
       '--text-glow-color': themeColors.textGlowColor,
       '--artistic-text-color': themeColors.artisticTextColor,
-      '--artistic-text-shadow': themeColors.accentColor,
+      '--artistic-text-shadow': themeColors.artisticTextColor,
     }"
     @click="handleBackgroundClick"
   >
@@ -49,7 +49,7 @@
       class="flex flex-col items-center justify-center absolute inset-0 z-20"
     >
       <!-- 旋转唱片组件 -->
-      <div class="vinyl-record-container mb-20">
+      <div class="vinyl-record-container mb-28 min-w-[200px] min-h-[200px]">
         <!-- 圆环粒子容器 -->
         <div class="particles-container" ref="particlesContainer"></div>
 
@@ -110,11 +110,11 @@
         </div>
 
         <div
-          class="controls flex justify-center items-center space-x-8 text-white"
+          class="controls flex justify-center items-center sm:space-x-8 space-x-4 text-white"
         >
           <!-- 重置按钮 -->
           <div
-            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            class="control-btn w-[50px] h-[50px] flex-shrink-0 flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
             @click="resetAudio"
             title="重置(R)"
           >
@@ -123,7 +123,7 @@
 
           <!-- 播放/暂停按钮 -->
           <div
-            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            class="control-btn w-[50px] h-[50px] flex-shrink-0 flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
             @click="togglePlayPause"
             title="播放/暂停(P)"
           >
@@ -133,7 +133,7 @@
 
           <!-- 全屏按钮 -->
           <div
-            class="control-btn w-[50px] h-[50px] flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
+            class="control-btn w-[50px] h-[50px] flex-shrink-0 flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 rounded-[50%] transition-all duration-300 ease-in-out transform hover:scale-110 focus:outline-none"
             @click="toggleFullscreen"
             title="全屏(F)"
           >
@@ -176,6 +176,21 @@ const toggleFullscreen = () => {
     // 进入全屏
     document.documentElement
       .requestFullscreen()
+      .then(() => {
+        console.log("已进入全屏", screen.orientation);
+        // 尝试锁定屏幕方向为竖屏
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation
+            .lock("portrait")
+            .then(() => {
+              console.log("屏幕方向已锁定为竖屏");
+            })
+            .catch((err) => {
+              console.warn("无法锁定屏幕方向:", err.message);
+              // 忽略错误，继续正常流程
+            });
+        }
+      })
       .catch((err) => {
         console.warn(`全屏请求错误: ${err.message}`);
       })
@@ -186,17 +201,31 @@ const toggleFullscreen = () => {
   } else {
     // 退出全屏
     if (document.exitFullscreen) {
-      document.exitFullscreen().finally(() => {
-        // 更新全屏状态
-        isFullscreen.value = !!document.fullscreenElement;
-      });
+      document
+        .exitFullscreen()
+        .then(() => {
+          // 退出全屏后解锁屏幕方向
+          if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+          }
+        })
+        .finally(() => {
+          // 更新全屏状态
+          isFullscreen.value = !!document.fullscreenElement;
+        });
     }
   }
 };
 
 // 监听全屏变化事件
 const handleFullscreenChange = () => {
-  isFullscreen.value = !!document.fullscreenElement;
+  const fullscreenActive = !!document.fullscreenElement;
+  isFullscreen.value = fullscreenActive;
+
+  // 如果用户手动退出全屏，确保解锁屏幕方向
+  if (!fullscreenActive && screen.orientation && screen.orientation.unlock) {
+    screen.orientation.unlock();
+  }
 };
 
 // 添加全屏变化事件监听器
@@ -330,6 +359,8 @@ const handleFileChange = (event) => {
     cleanupAudio();
 
     const fileName = file.name.replace(/\.[^/.]+$/, "");
+    // 如果文件名超过8个字符，用前6个字符+省略号替换
+    // trackTitle.value = fileName.length > 8 ? fileName.substring(0, 6) + '……' : fileName;
     trackTitle.value = fileName;
 
     // 创建新的blob URL并保存引用
@@ -338,57 +369,21 @@ const handleFileChange = (event) => {
 
     showPlayer.value = true;
 
-    // 使用Promise方式在音频加载完成后尝试自动播放
-    if (audioPlayer.value) {
-      // 先设置循环播放
-      audioPlayer.value.loop = true;
-
-      // 创建一个Promise来处理音频加载和播放
-      const playAfterLoad = new Promise((resolve, reject) => {
-        const handleLoad = () => {
-          cleanupEventListeners();
-          resolve();
-        };
-
-        const handleError = (err) => {
-          cleanupEventListeners();
-          reject(err);
-        };
-
-        const cleanupEventListeners = () => {
-          audioPlayer.value.removeEventListener("loadedmetadata", handleLoad);
-          audioPlayer.value.removeEventListener("canplay", handleLoad);
-          audioPlayer.value.removeEventListener("error", handleError);
-        };
-
-        // 添加事件监听器
-        audioPlayer.value.addEventListener("loadedmetadata", handleLoad);
-        audioPlayer.value.addEventListener("canplay", handleLoad);
-        audioPlayer.value.addEventListener("error", handleError);
-
-        // 设置一个超时，以防音频加载事件未触发
-        setTimeout(() => {
-          cleanupEventListeners();
-          reject(new Error("音频加载超时"));
-        }, 5000);
-      });
-
-      // 尝试播放音频
-      playAfterLoad
-        .then(() => {
-          return audioPlayer.value.play();
-        })
-        .then(() => {
-          isPlaying.value = true;
-        })
-        .catch((err) => {
-          console.warn("自动播放失败，需要用户交互:", err);
+    // 播放音乐
+    setTimeout(() => {
+      if (audioPlayer.value) {
+        audioPlayer.value.loop = true;
+        audioPlayer.value.play().catch((err) => {
+          console.warn("播放失败:", err);
           isPlaying.value = false;
         });
-    } else {
-      isPlaying.value = false;
-    }
+        isPlaying.value = true;
+      }
+    }, 100);
   }
+
+  // 确保播放状态为暂停，让用户通过交互手动开始播放
+  isPlaying.value = false;
 };
 
 const togglePlayPause = () => {
@@ -445,7 +440,7 @@ const startParticleAnimation = () => {
   // 每秒创建几个圆环
   particleInterval = setInterval(() => {
     createParticleRing();
-  }, 2000);
+  }, 3000);
 };
 
 // 停止粒子动画
@@ -595,11 +590,7 @@ onUnmounted(() => {
 </script>
 
 <style>
-.artistic-text {
-  font-family: "Microsoft YaHei", sans-serif;
-  text-shadow: 2px 2px 4px var(--artistic-text-shadow);
-  animation: textGlow 3s ease-in-out infinite alternate;
-}
+
 
 /* 流式渐变背景动画 */
 @keyframes gradientFlow {
@@ -620,18 +611,6 @@ onUnmounted(() => {
   will-change: background-position;
 }
 
-@keyframes textGlow {
-  from {
-    text-shadow:
-      0 0 5px rgba(255, 255, 255, 0.7),
-      0 0 10px var(--text-glow-color);
-  }
-  to {
-    text-shadow:
-      0 0 10px rgba(255, 255, 255, 0.9),
-      0 0 20px var(--text-glow-color);
-  }
-}
 
 /* 旋转唱片样式 */
 .vinyl-record-container {
@@ -642,6 +621,7 @@ onUnmounted(() => {
   position: relative;
   height: 200px;
   width: 200px;
+  flex-shrink: 0;
 }
 
 /* 粒子容器 */
@@ -688,6 +668,7 @@ onUnmounted(() => {
   border: 2px solid;
   transition: transform 0.3s ease;
   z-index: 20;
+  flex-shrink: 0;
 }
 
 .vinyl-grooves {
@@ -763,24 +744,9 @@ onUnmounted(() => {
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .vinyl-record-container {
-    height: 150px;
-    width: 150px;
-  }
-
   .particles-container {
     width: 150px;
     height: 150px;
-  }
-
-  .vinyl-record {
-    width: 150px;
-    height: 150px;
-  }
-
-  .vinyl-center {
-    width: 25px;
-    height: 25px;
   }
 
   .particle-ring {
